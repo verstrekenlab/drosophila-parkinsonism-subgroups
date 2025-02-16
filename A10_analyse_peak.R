@@ -1,4 +1,9 @@
+#' 
+#'
 #' @import data.table
+#' @param dt
+#' @param output_dt
+#' @param outlier_thr TODO
 analyse_peak <- function(dt, output_dt, outlier_thr = 20) {
 
   . <- := <- .SD <- id <- day <- max_velocity <- NULL
