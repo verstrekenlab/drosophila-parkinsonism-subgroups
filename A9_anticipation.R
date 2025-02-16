@@ -1,5 +1,7 @@
-analyse_morning_anticipation <- function(dt, output_dt, morning=c(6, 9, 12), evening=c(18, 21, 24)) {
-
+analyse_morning_anticipation <- function(
+  dt, output_dt,
+  morning=c(6, 9, 12), evening=c(18, 21, 24)
+){
   anticipation_period <- := <- NULL
 
   dt[, anticipation_period := NA]
@@ -40,8 +42,8 @@ analyse_morning_anticipation <- function(dt, output_dt, morning=c(6, 9, 12), eve
 
   A9_anticipation[
     .(
-      A9_morning_anticipation = 100 * mean(morning_anticipation),
-      A9_evening_anticipation = 100 * mean(evening_anticipation)
+      A9_morning_anticipation := 100 * mean(morning_anticipation),
+      A9_evening_anticipation := 100 * mean(evening_anticipation)
     ),
     by = id
   ]

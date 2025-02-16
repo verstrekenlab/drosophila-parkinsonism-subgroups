@@ -40,10 +40,9 @@ dt <- scopr::load_ethoscope(
 
 dt_curated <- dt[t <= behavr::days(stop_day_experiment + 1), ]
 dt_curated[, day := floor(t / behavr::days(1))]
-#***Plotting and analysis****
+
+
 ## Quality control per etoscope
-
-
 ethoscope_codes <- unique(sapply(metadata$id, function(x) {substr(x, 21, 26)}))
 output_folder <- file.path(DATA_DIR, "output", "quality_control")
 
@@ -88,7 +87,7 @@ output_dt <- analyse_latency_to_sleep(
   dt_curated, output_dt,
   start_day_experiment, stop_day_experiment,
   output_folder, ID,
-  do_print=a_print_graphs
+  do_print = a_print_graphs
 )
 
 ###motor performance

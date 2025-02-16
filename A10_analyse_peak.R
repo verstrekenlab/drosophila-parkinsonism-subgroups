@@ -1,3 +1,4 @@
+#' @import data.table
 analyse_peak <- function(dt, output_dt, outlier_thr = 20) {
 
   . <- := <- .SD <- id <- day <- max_velocity <- NULL
