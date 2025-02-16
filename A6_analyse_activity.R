@@ -1,6 +1,10 @@
+#' Computes:
+#'     * A6_sum_active_minutes_mean: Number of minutes in the activate state in the average day for every fly
+#'     * A7_beam_crosses_per_active_minute_mean: Average number of beam crosses per active minute
+#' 
+#' Assumes time_window_length=10 so that count divided by 6 is number of mins
 analyse_activity <- function(dt, output_dt) {
 
-  # assume time_window_length=10 so that count divided by 6 is number of mins
   . <- moving <- id <- day <- sum_active_minutes_day <- NULL
 
   A6_active_minute <- dt[,

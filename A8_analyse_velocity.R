@@ -1,3 +1,4 @@
+#' Compute average max velocity for each fly throughout the experiment
 analyse_velocity <- function(dt, output_dt) {
 
   . <- moving <- max_velocity <- id <- .N <- NULL

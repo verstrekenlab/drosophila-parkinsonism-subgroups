@@ -1,3 +1,6 @@
+#' Compute:
+#'      * A5_sum_beam_crosses_mean: Number of beam crosses per day on average for every fly
+#' 
 analyse_beam_crosses <- function(dt, output_dt) {
 
   . <- id <- t <- beam_crosses <- day <- NULL
