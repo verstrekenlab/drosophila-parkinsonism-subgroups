@@ -1,4 +1,4 @@
-analyse_mean_fraction_of_sleep_day_vs_night <- function(dt, output_dt, output_folder, ID, do_print=FALSE) {
+analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 
   . <- asleep <- id <- phase <- NULL
 
@@ -11,9 +11,6 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt, output_dt, output_fo
       by = id
     ]
   )
+  return(summary_dt)
 
-  output_dt$A2_sleep_fraction_day <- summary_dt$A2_sleep_fraction_l
-  output_dt$A2_sleep_fraction_night <- summary_dt$A2_sleep_fraction_d
-
-  return(output_dt)
 }

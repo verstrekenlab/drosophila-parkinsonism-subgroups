@@ -1,13 +1,14 @@
 #' Compute average max velocity for each fly throughout the experiment
-analyse_velocity <- function(dt, output_dt) {
+analyse_velocity <- function(dt, time_window_length) {
 
   . <- moving <- max_velocity <- id <- .N <- NULL
 
-  A8_velocity <- dt[,
-    .(mean_velocity_if_awake = max_velocity * moving / .N),
-    by = id
+  velocity_analysis <- dt[,
+    .(total_distance = sum(sum_movement), n = .N*time_window_length),
+    by = .(asleep, id)
   ]
-  output_dt$A8_velocity <- A8_velocity$mean_velocity_if_awake
 
-  return(output_dt)
+  velocity_analysis[, velocity := total_distance / n]
+
+  return(velocity_analysis)
 }

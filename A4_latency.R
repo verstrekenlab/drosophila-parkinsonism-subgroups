@@ -5,29 +5,43 @@
 #' 3. Mean bout duration
 #' 4. Total sleep time
 sleep_descriptor <- function(dt) {
-    bout_summary <- dt[,.(
-        latency = t[1] %% behavr::hours(12),
-        length_longest_bout = max(duration_mins),
-        n_bouts = .N,
-        mean_bout_length = mean(duration_mins),
-        sum_sleep_minutes = sum((duration_mins)
-    )]
-    return(bout_summary)
+  
+  .N <- duration_mins <- . <- NULL
+  
+  bout_summary <- dt[,.(
+    latency = t[1] %% behavr::hours(12),
+    length_longest_bout = max(duration_mins),
+    n_bouts = .N,
+    mean_bout_length = mean(duration_mins),
+    sum_sleep_minutes = sum(duration_mins)
+  )]
+  return(bout_summary)
 }
 
 sleep_descriptor_2 <- function(dt) {
-    bout_summary <- dt[,.(
-        length_longest_bout = mean(length_longest_bout),
-        n_bouts = mean(n_bouts),
-        mean_bout_length = mean(duration_mins),
-        sum_sleep_minutes = mean((duration_mins)
-    )]
-    return(bout_summary)
+  length_longest_bout <- n_bouts <- duration_mins <- . <- NULL
+
+  bout_summary <- dt[,.(
+    length_longest_bout = mean(length_longest_bout),
+    n_bouts = mean(n_bouts),
+    mean_bout_length = mean(duration_mins),
+    sum_sleep_minutes = mean(duration_mins)
+  )]
+  return(bout_summary)
 }
 
+#TODO
+# do we want the average latency to the longest bout across nights
+# i.e. the mean of n numbers where n is the number of nights
+# or do we look for the longest bout in the whole experiment and take its latency?
 
-analyse_latency_to_sleep <- function(dt, output_dt, start_day_experiment, stop_day_experiment, output_folder, ID, do_print=FALSE) {
-  bout_dt <- bout_analysis(asleep, dt_curated)[asleep == TRUE,]
+#TODO
+# What do we do with the sleep-deprived flies?
+
+analyse_latency_to_sleep <- function(dt, start_day_experiment) {
+  
+  asleep <- := <- NULL
+  bout_dt <- sleepr::bout_analysis(asleep, dt_curated)[asleep == TRUE,]
   bout_dt[, asleep := NULL]
 
   metadata <- dt[, meta = TRUE]
@@ -37,8 +51,8 @@ analyse_latency_to_sleep <- function(dt, output_dt, start_day_experiment, stop_d
     by = id,
     all = TRUE
   )
-  setkey(metadata, id)
-  setmeta(bout_dt, metadata)
+  data.table::setkey(metadata, id)
+  behavr::setmeta(bout_dt, metadata)
 
   bout_dt[duration_mins := duration/60]
   bout_dt[, day := floor(t / behavr::days(1))]
@@ -53,6 +67,7 @@ analyse_latency_to_sleep <- function(dt, output_dt, start_day_experiment, stop_d
   A4_latency_day <- temp_for_latency_phases[, phase == "day", sleep_descriptor_2(.SD), by = id]
   A4_latency_night <- temp_for_latency_phases[, phase == "night", sleep_descriptor_2(.SD), by = id]
 
+  output_dt <- list()
   output_dt$A4_sum_sleep_minutes <- A4_latency$sum_sleep_minutes
   output_dt$A4_n_bouts<-A4_latency$n_bouts
   output_dt$A4_mean_bout_length<-A4_latency$mean_bout_length
@@ -64,6 +79,7 @@ analyse_latency_to_sleep <- function(dt, output_dt, start_day_experiment, stop_d
   output_dt$A4_length_longest_bout_night<-A4_latency_night$length_longest_bout
   output_dt$A4_latency<-A4_latency_night$latency
   output_dt$A4_latency_to_longest_bout_night<-A4_latency_night$latency_to_longest_bout_night
+  output_dt <- as.data.table(output_dt)
 
   return(output_dt)
 
