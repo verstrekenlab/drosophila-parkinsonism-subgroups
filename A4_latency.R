@@ -30,6 +30,25 @@ sleep_descriptor_2 <- function(dt) {
   return(bout_summary)
 }
 
+latency_descriptor <- function(dt_bouts) {
+
+  asleep <- duration <- NULL
+  # compute latency
+  latency <- dt_bouts[, t[1] %% behavr::hours(12)]
+  latency_to_longest_bout <- dt_bouts[
+    which.max(duration),
+    t %% behavr::hours(12)
+  ]
+
+
+  # compute latency to longest bout
+  latency_analysis <- data.table::data.table(
+    latency = latency,
+    latency_to_longest_bout = latency_to_longest_bout
+  )
+  return(latency_analysis)
+}
+
 #TODO
 # do we want the average latency to the longest bout across nights
 # i.e. the mean of n numbers where n is the number of nights
@@ -38,49 +57,20 @@ sleep_descriptor_2 <- function(dt) {
 #TODO
 # What do we do with the sleep-deprived flies?
 
-analyse_latency_to_sleep <- function(dt, start_day_experiment) {
+analyse_latency <- function(dt_bouts) {
   
-  asleep <- := <- NULL
-  bout_dt <- sleepr::bout_analysis(asleep, dt_curated)[asleep == TRUE,]
-  bout_dt[, asleep := NULL]
+  latency_to_longest_bout <- `:=` <- . <- day <- .SD <- id <- phase <- latency <- asleep <- NULL
 
-  metadata <- dt[, meta = TRUE]
-  metadata <- merge(
-    metadata,
-    metadata[, .(first_day =  ifelse(optomotor == "YES", get_t_after_sd(.SD), start_day_experiment)), by = id],
-    by = id,
-    all = TRUE
-  )
-  data.table::setkey(metadata, id)
-  behavr::setmeta(bout_dt, metadata)
+  dt_bouts[, day := floor(t / behavr::hours(24))]
+  latency_analysis <- dt_bouts[, latency_descriptor(.SD), by = .(id, day, asleep, phase)]
+  
+  latency_analysis <- latency_analysis[,
+    .(
+      latency = mean(latency),
+      latency_to_longest_bout = mean(latency_to_longest_bout)
+    ),
+    by = .(asleep, phase, id)
+  ]
 
-  bout_dt[duration_mins := duration/60]
-  bout_dt[, day := floor(t / behavr::days(1))]
-  bout_dt[, phase_count := floor(t / behavr::days(.5))]
-  bout_dt[, phase := ifelse(t %% behavr::hours(24) < behavr::hours(12), "day", "night")]
-
-  temp_for_latency <- bout_dt[t >= behavr::days(xmv(first_day)), sleep_descriptor(.SD), by = .(id, day)]
-  temp_for_latency_phases <- bout_dt[t >= behavr::days(xmv(first_day)), sleep_descriptor(.SD), by = .(id, phase_count)]
-  temp_for_latency_phases[, phase := ifelse(phase_count %%2 == 0, "day", "night")]
-
-  A4_latency <- temp_for_latency[, sleep_descriptor_2(.SD), by = id]
-  A4_latency_day <- temp_for_latency_phases[, phase == "day", sleep_descriptor_2(.SD), by = id]
-  A4_latency_night <- temp_for_latency_phases[, phase == "night", sleep_descriptor_2(.SD), by = id]
-
-  output_dt <- list()
-  output_dt$A4_sum_sleep_minutes <- A4_latency$sum_sleep_minutes
-  output_dt$A4_n_bouts<-A4_latency$n_bouts
-  output_dt$A4_mean_bout_length<-A4_latency$mean_bout_length
-  output_dt$A4_length_longest_bout<-A4_latency$length_longest_bout
-  output_dt$A4_sum_sleep_minutes_day<-A4_latency_day$sum_sleep_minutes
-  output_dt$A4_sum_sleep_minutes_night<-A4_latency_night$sum_sleep_minutes_night
-  output_dt$A4_n_bouts_night<-A4_latency_night$n_bouts
-  output_dt$A4_mean_bout_length_night<-A4_latency_night$mean_bout_length
-  output_dt$A4_length_longest_bout_night<-A4_latency_night$length_longest_bout
-  output_dt$A4_latency<-A4_latency_night$latency
-  output_dt$A4_latency_to_longest_bout_night<-A4_latency_night$latency_to_longest_bout_night
-  output_dt <- as.data.table(output_dt)
-
-  return(output_dt)
-
+  return(latency_analysis)
 }

@@ -1,9 +1,11 @@
-analyse_sleep_architecture <- function(dt_curated) {
+analyse_sleep_architecture <- function(dt_bouts) {
 
-    dt_bouts <- sleepr::bout_analysis(var = asleep, data = dt_curated)
-    dt_bouts[, phase := ifelse(t %% behavr::hours(24) > behavr::hours(12), "D", "L")]
-
-    architecture <- dt_bouts[, .(mean(duration), count = .N), by = .(id, phase, asleep)]
-    out <- architecture[asleep == TRUE & phase == "D",]
-    return(out)    
+    duration <- asleep <- phase <- id <- .N <- . <- NULL
+    architecture <- dt_bouts[, .(
+        bout_duration = mean(duration),
+        bout_count = .N
+      ),
+      by = .(id, phase, asleep)
+    ]
+    return(architecture)
 }
