@@ -1,55 +1,55 @@
-analyse_morning_anticipation <- function(
-  dt, output_dt,
-  morning=c(6, 9, 12), evening=c(18, 21, 24)
+analyse_anticipation <- function(
+  dt, morning=behavr::hours(c(6, 9, 12)), evening=behavr::hours(c(18, 21, 24))
 ){
-  anticipation_period <- := <- NULL
+  anticipation_period <- `:=` <- NULL
 
-  dt[, anticipation_period := NA]
+  dt[, anticipation_period := NA_character_]
+
+
+  dt[, t_day := t %% behavr::days(1)]
 
   dt[
-    t %% behavr::days(1) > morning[1] && t %% behavr::days(1) <= morning[2],
+    t_day >= morning[1] & t_day < morning[2],
     anticipation_period := "morning_bl"
   ]
   dt[
-    t %% behavr::days(1) > morning[2] && t %% behavr::days(1) <= morning[3],
+    t_day >= morning[2] & t_day < morning[3],
     anticipation_period := "morning_sl"
   ]
   dt[
-    t %% behavr::days(1) > evening[1] && t %% behavr::days(1) <= evening[2],
+    t_day >= evening[1] & t_day < evening[2],
     anticipation_period := "evening_bl"
   ]
   dt[
-    t %% behavr::days(1) > evening[2] && t %% behavr::days(1) <= evening[3],
+    t_day >= evening[2] & t_day < evening[3],
     anticipation_period := "evening_sl"
   ]
 
-  dt[, anticipation_period := NULL]
-
-  A9_anticipation <- dcast(
-    dt[,
-      .(moving = sum(moving))
-      by = .(id, day, anticipation_period)
-    ],
-    id + day ~ anticipation_period, value.var = "moving"
-  )
-
-  A9_anticipation[,
-    .(
-      morning_anticipation := (morning_sl - morning_bl) / (morning_sl + morning_bl),
-      evening_anticipation := (evening_sl - evening_bl) / (evening_sl + evening_bl)
-    )
+  dt_anticipation <- dt[
+    !is.na(anticipation_period),
+    .(moving = sum(moving)),
+    by = .(id, day, anticipation_period)
   ]
 
-  A9_anticipation[
+  anticipation_analysis <- NULL
+
+  
+  dt_anticipation <- dcast(
+    dt_anticipation, id + day ~ anticipation_period,
+    value.var = "moving"
+  )
+
+
+  dt_anticipation[, morning_anticipation := (morning_sl - morning_bl) / (morning_sl + morning_bl)]
+  dt_anticipation[, evening_anticipation := (evening_sl - evening_bl) / (evening_sl + evening_bl)]
+
+  anticipation_analysis <- dt_anticipation[,
     .(
-      A9_morning_anticipation := 100 * mean(morning_anticipation),
-      A9_evening_anticipation := 100 * mean(evening_anticipation)
+      morning_anticipation = 100 * mean(morning_anticipation),
+      evening_anticipation = 100 * mean(evening_anticipation)
     ),
     by = id
   ]
 
-  output_dt$A9_morning_anticipation <- A9_anticipation$A9_morning_anticipation
-  output_dt$A9_evening_anticipation <- A9_anticipation$A9_evening_anticipation
-
-  return(output_dt)
+  return(anticipation_analysis)
 }

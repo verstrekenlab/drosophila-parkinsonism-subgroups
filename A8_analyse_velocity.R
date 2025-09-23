@@ -1,14 +1,21 @@
 #' Compute average max velocity for each fly throughout the experiment
-analyse_velocity <- function(dt, time_window_length) {
+analyse_velocity <- function(dt, time_window_length, by_phase=FALSE) {
 
   . <- sum_movement <- asleep <- total_distance <- total_distance <- n <- velocity <- id <- .N <- `:=` <- NULL
 
+  grouping_vars = c("asleep", "id")
+  if (by_phase) grouping_vars <- c(grouping_vars, "phase")
+
   velocity_analysis <- dt[,
-    .(total_distance = sum(sum_movement), n = .N * time_window_length),
-    by = .(asleep, phase, id)
+    .(
+      total_distance = sum(sum_movement),
+      seconds_passed = .N * time_window_length
+    ),
+    by = grouping_vars
   ]
 
-  velocity_analysis[, velocity := total_distance / n]
+  velocity_analysis[, velocity := total_distance / seconds_passed]
+  velocity_analysis[, seconds_passed := NULL]
 
   return(velocity_analysis)
 }

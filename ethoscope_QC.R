@@ -6,7 +6,7 @@ ethoscope_QC <- function(dt, title, output_path){
 
   asleep <- NULL
 
-  gg <- ggetho::ggetho(dt, ggplot2::aes(y = asleep)) +
+  gg <- ggetho::ggetho(dt, ggplot2::aes(group = fly_no, y = asleep)) +
     ggetho::stat_pop_etho() +
     ggetho::stat_ld_annotations(height = 1, alpha = 0.3, outline = NA) +
     ggplot2::facet_grid(fly_no ~ .) +
