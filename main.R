@@ -119,36 +119,35 @@ sapply(seq_along(ethoscope_codes), function(i) {
 })
 
 output_folder <- file.path(DATA_DIR, "output")
-####### sleep fraction analysis ######
 
-#A2: mean fraction of sleep day vs night
+
+#### -- Sleep fractions in D and L phases
 sleep_fractions <- analyse_mean_fraction_of_sleep_day_vs_night(dt_curated)
 sleep_fractions <- dcast(sleep_fractions, id ~ paste0("asleep_", phase), value.var = "sleep_fraction")
 
 
-#A3: Bout analysis and sleep architecture
+#### -- Sleep architecture (bout count and duration)
 sleep_architecture <- analyse_sleep_architecture(dt_bouts)
 sleep_architecture <- sleep_architecture[phase == "D" & asleep == TRUE]
 sleep_architecture[, phase := NULL]
 sleep_architecture[, asleep := NULL]
 
 
-# #A4 to calculate the "latency to sleep"
+#### -- Latency to sleep
 sleep_latency <- analyse_latency(dt_bouts)
 sleep_latency <- sleep_latency[phase == "D" & asleep == TRUE]
 sleep_latency[, phase := NULL]
 sleep_latency[, asleep := NULL]
 
-#A8 average velocity
+#### -- Average velocity
 velocity_analysis <- analyse_velocity(dt_curated, time_window_length, by_phase=FALSE)
 velocity_analysis <- velocity_analysis[asleep == TRUE]
 velocity_analysis[, asleep := NULL]
 
 
-# print(velocity_analysis)
+
+#### -- Anticipation analysis
 anticipation_analysis <- analyse_anticipation(dt_curated)
-# #  a = number of transitions in 6h to 9h
-# #  b = number of transitions in 3h to 6h
 
 
 output_dt <- list(sleep_fractions, sleep_architecture, sleep_latency, velocity_analysis, anticipation_analysis)
