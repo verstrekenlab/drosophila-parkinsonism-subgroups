@@ -9,17 +9,8 @@ library(ggetho)
 ## - Parameters
 ID <- "0061"
 DATA_DIR <- paste("/home/vibflysleep/FlySleepLab_Dropbox/Antonio/PVLab/Natalie/PD/drosophila-parkinsonism-subgroups/ID",ID, sep="")
-
 start_day_experiment <- 1
-stop_day_experiment <- 5
-a_print_graphs <- FALSE
-a_print_quality_control <- TRUE
-a_print_graphs_individual_arousal <- TRUE
-arousal <- TRUE
-a_calculate_velocity_after_awakening <- TRUE
-a_remove_temp_dataTables <- TRUE
-a_change_single_sleep_events <- FALSE
-a_filter_values <- FALSE
+stop_day_experiment <- 6
 result_dir <- file.path(DATA_DIR, "raw_data")
 ethoscope_cache <- "/ethoscope_data/natalie_cache"
 
@@ -40,12 +31,12 @@ get_t_after_sd <- function(meta_row) {
 
 time_window_length <- 10
 source("ethoscope_QC.R")
-source("A1_mean_fraction_sleep.R")
+source("merge_behavr.R")
 source("A2_mean_fraction_sleep_day_night.R")
 source("A3_sleep-architecture.R")
-# source("A4_latency.R")
-source("A5_beam_crosses.R")
-source("B1_motor_parameters.R")
+source("A4_latency.R")
+source("A8_analyse_velocity.R")
+source("A9_anticipation.R")
 source("movement_detector.R")
 create_directory_structure(DATA_DIR)
 
@@ -88,18 +79,29 @@ dt_movement <- scopr::load_ethoscope(
   time_window_length = time_window_length
 )
 
-dt <- behavr::merge_behavr_all(dt_sleep, dt_movement[, .(id, t, sum_movement)])
+dt <- merge_behavr_all(dt_sleep, dt_movement[, .(id, t, sum_movement)])
 
-dt_curated <- dt[t <= behavr::days(stop_day_experiment + 1), ]
-dt_curated[, day := floor(t / behavr::days(1))]
+
+dt_curated <- dt[t > behavr::days(start_day_experiment) & t < behavr::days(stop_day_experiment), ]
+
+# NOTE Wrapping in invisible()
+# because for some reason the data tables are getting printed
+invisible({
+  dt_curated[, day := floor(t / behavr::days(1))]
+  dt_curated[, phase := ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D")]
+  dt_bouts <- sleepr::bout_analysis(var = asleep, data = dt_curated)
+  dt_bouts[, day := floor(t / behavr::days(1))]
+  dt_bouts[, phase := ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D")]
+  dt_bouts[, bout_id := seq_len(nrow(dt_bouts))]
+})
 
 ## Quality control per etoscope
+output_folder <- file.path(DATA_DIR, "output", "quality_control")
 ethoscope_codes <- unique(sapply(metadata$id, function(x) {
   substr(x, 21, 26)
 }))
-output_folder <- file.path(DATA_DIR, "output", "quality_control")
 
-lapply(seq_along(ethoscope_codes), function(i) {
+sapply(seq_along(ethoscope_codes), function(i) {
   ethoscope_ids <- unique(grep(
     pattern = ethoscope_codes[i], x = dt$id, value = TRUE
   ))
@@ -117,45 +119,43 @@ lapply(seq_along(ethoscope_codes), function(i) {
 })
 
 output_folder <- file.path(DATA_DIR, "output")
-
 ####### sleep fraction analysis ######
 
 #A2: mean fraction of sleep day vs night
 sleep_fractions <- analyse_mean_fraction_of_sleep_day_vs_night(dt_curated)
+sleep_fractions <- dcast(sleep_fractions, id ~ paste0("asleep_", phase), value.var = "sleep_fraction")
+
 
 #A3: Bout analysis and sleep architecture
-## check difference to A4 mean duration!
-sleep_architecture <- analyse_sleep_architecture(dt_curated)
+sleep_architecture <- analyse_sleep_architecture(dt_bouts)
+sleep_architecture <- sleep_architecture[phase == "D" & asleep == TRUE]
+sleep_architecture[, phase := NULL]
+sleep_architecture[, asleep := NULL]
 
 
 # #A4 to calculate the "latency to sleep"
-sleep_latency <- analyse_latency_to_sleep(
-  dt_curated,
-  start_day_experiment, stop_day_experiment
-)
-
-###motor performance
-#A5: beam crosses in 24h
-# output_dt <- analyse_beam_crosses(dt_curated, output_dt)
-
-#A6 + A7 beam crosses per active minute
-# output_dt <- analyse_activity(dt_curated, output_dt)
+sleep_latency <- analyse_latency(dt_bouts)
+sleep_latency <- sleep_latency[phase == "D" & asleep == TRUE]
+sleep_latency[, phase := NULL]
+sleep_latency[, asleep := NULL]
 
 #A8 average velocity
-print(head(dt_curated))
-velocity_analysis <- analyse_velocity(dt_curated, time_window_length)
+velocity_analysis <- analyse_velocity(dt_curated, time_window_length, by_phase=FALSE)
+velocity_analysis <- velocity_analysis[asleep == TRUE]
+velocity_analysis[, asleep := NULL]
 
 
-#A9 morning anticipation = (a-b)/(a+b),
-# output_dt <- analyse_morning_anticipation(dt_curated, output_dt)
-#  a = number of transitions in 6h to 9h
-#  b = number of transitions in 3h to 6h
-
-#A10 time of the peak
-# add evening peak?
-# output_dt <- analyse_peak(dt_curated, output_dt)
+# print(velocity_analysis)
+anticipation_analysis <- analyse_anticipation(dt_curated)
+# #  a = number of transitions in 6h to 9h
+# #  b = number of transitions in 3h to 6h
 
 
-#B1: motor parameters
-output_dt <- analyse_mean_velocity(dt_curated, output_dt)
-output_dt <- average_speed_total(dt_curated, output_dt)
+output_dt <- list(sleep_fractions, sleep_architecture, sleep_latency, velocity_analysis, anticipation_analysis)
+
+
+output_dt <- Reduce(function(x, y) {
+  merge(x, y, by = c("id"), all.x = TRUE, all.y = FALSE)
+}, output_dt)
+
+print(output_dt)
