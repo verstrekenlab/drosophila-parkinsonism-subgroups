@@ -1,0 +1,84 @@
+Kaempf et al 2026
+=============================
+
+This repository contains the R code required to obtain the sleep features computed from the PD-collection of flies
+
+
+## How to run
+Rscript main.R
+
+## What is produced
+The file 2026_kaempf_sleep_features.csv contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
+
+# How to install
+Install R 3.6.1
+
+
+As of 2025, some packages cannot be installed anymore using `install.packages` because the standard R version is now R4.
+You can still install them manually, like this: 
+
+```
+# purrr (dependency of behavr)
+git clone git@github.com:tidyverse/purrr
+cd purrr
+git checkout 6ac2ec2
+R CMD INSTALL .
+cd ..
+
+# cpp11 (dependency of tzdb)
+git clone git@github.com:r-lib/cpp11
+cd cpp11
+git checkout v0.4.3
+R CMD INSTALL .
+cd ..
+
+# tzdb (dependency of scopr)
+git clone git@github.com:r-lib/tzdb
+cd tzdb
+git checkout v0.3.0
+R CMD INSTALL .
+cd ..
+
+# lattice (dependency of zoo -> scopr)
+git clone git@github.com:deepayan/lattice
+cd lattice
+git checkout d425f4c9f141298dfb521ccb86907a4c3538158b
+R CMD INSTALL .
+cd ..
+
+# rjson (dependency of scopr)
+git clone git@github.com/alexcb/rjson
+cd rjson/rjson
+git checkout 7974ab7283b51095fbb89e68684078dc4536715a
+R CMD INSTALL .
+cd ../..
+
+# ggplot2 (dependency of ggetho)
+git clone git@github.com:tidyverse/ggplot2
+cd ggplot2
+git checkout v3.3.6
+cd ggplot2
+R CMD INSTALL .
+cd ..
+
+```
+
+Install rethomics
+
+
+R
+```
+install.packages("data.table")
+```
+
+```
+git clone git@github.com:shaliulab/behavr@deployment
+git clone git@github.com:shaliulab/scopr@pd_paper
+git clone git@github.com:shaliulab/sleepr@deployment
+
+R CMD INSTALL behavr
+R CMD INSTALL scopr
+R CMD INSTALL sleepr
+
+
+```
