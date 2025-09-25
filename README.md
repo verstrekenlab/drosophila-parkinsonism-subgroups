@@ -8,7 +8,7 @@ This repository contains the R code required to obtain the sleep features comput
 Rscript main.R
 
 ## What is produced
-The file 2026_kaempf_sleep_features.csv contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
+The file `2026_kaempf_sleep_features.csv` contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
 
 # How to install
 Install R 3.6.1
@@ -17,6 +17,7 @@ Install R 3.6.1
 As of 2025, some packages cannot be installed anymore using `install.packages` because the standard R version is now R4.
 You can still install them manually, like this: 
 
+bash / cmd
 ```
 # purrr (dependency of behavr)
 git clone git@github.com:tidyverse/purrr
@@ -60,7 +61,6 @@ git checkout v3.3.6
 cd ggplot2
 R CMD INSTALL .
 cd ..
-
 ```
 
 Install rethomics
@@ -71,6 +71,7 @@ R
 install.packages("data.table")
 ```
 
+bash / cmd
 ```
 git clone git@github.com:shaliulab/behavr@deployment
 git clone git@github.com:shaliulab/scopr@pd_paper
