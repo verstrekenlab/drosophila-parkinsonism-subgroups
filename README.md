@@ -14,9 +14,14 @@ Rscript main.R
 The file `2026_kaempf_sleep_features.csv` contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
 
 # How to install
-Install R 3.6.1
+
+## 1. Download this repository
+Download main.R and library.R and put them in the same folder
+
+## 2. Install R 3.6.1
 
 
+## 3. Install dependencies whose last version does not support R3.6.1
 As of 2025, some packages cannot be installed anymore using `install.packages` because the standard R version is now R4.
 You can still install them manually, like this: 
 
@@ -66,8 +71,7 @@ R CMD INSTALL .
 cd ..
 ```
 
-Install rethomics
-
+## 4. Install rethomics
 
 R
 ```
