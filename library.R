@@ -277,6 +277,8 @@ analyse_anticipation <- function(
     by = id
   ]
 
+  anticipation_analysis <- anticipation_analysis[, .(id, morning_anticipation)]
+
   return(anticipation_analysis)
 }
 
