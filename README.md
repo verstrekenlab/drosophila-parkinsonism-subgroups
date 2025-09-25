@@ -24,9 +24,7 @@ Details of the columns:
 * `latency_to_longest_bout`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in minutes
 * `total_distance`: Longitude of the path walked by the animal in the average day (average over 5 days), in meters (meters / day)
 * `velocity`: mean max velocity while awake
-* `morning_anticipation`: Percentage of the time spent moving in the last 6 hours before the DL transition which occurred in the last 3 hours
-* `evening_anticipation`: Percentage of the time spent moving in the last 6 hours before the LD transition which occurred in the last 3 hours
-
+* `morning_anticipation`: Percentage of the time spent moving in the last 6 hours before the DL transition which occurred in the last 3 hours before the DL transition i.e. 100 * time moving in (tDL-3h, tDL) / time moving in (tDL-6h, tDL)
 
 # How to install
 
@@ -102,6 +100,4 @@ git clone git@github.com:shaliulab/sleepr@deployment
 R CMD INSTALL behavr
 R CMD INSTALL scopr
 R CMD INSTALL sleepr
-
-
 ```
