@@ -22,7 +22,7 @@ Details of the columns:
 * `bout_count`: Average number of sleep bouts
 * `latency`: Average time taken to enter the first bout of sleep after transitioning to the D phase, in minutes
 * `latency_to_longest_bout`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in minutes
-* `total_distance`: Longitude of the path walked by the animal during the experiment, in units of the ROI width (1 RW = approx 6 cm)
+* `total_distance`: Longitude of the path walked by the animal in the average day (average over 5 days), in meters (meters / day)
 * `velocity`: mean max velocity while awake
 * `morning_anticipation`: Percentage of the time spent moving in the last 6 hours before the DL transition which occurred in the last 3 hours
 * `evening_anticipation`: Percentage of the time spent moving in the last 6 hours before the LD transition which occurred in the last 3 hours
