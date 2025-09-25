@@ -13,6 +13,23 @@ Rscript main.R
 ## What is produced
 The file `2026_kaempf_sleep_features.csv` contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
 
+Details of the columns:
+
+* `id`: Fly identifier (unique to each fly)
+* `asleep_D`: Fraction of the Dark phase spent sleeping (average over 5 days)
+* `asleep_L`: Fraction of the Light phase spent sleeping (average over 5 days)
+* `bout_duration`: Average sleep bout duration in seconds
+* `bout_count`: Average number of sleep bouts
+* `latency`: Average time taken to enter the first bout of sleep after transitioning to the D phase, in seconds
+* `latency_to_longest_bout`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in seconds
+* `total_distance`: Longitud of the path walked by the animal during the experiment, in units of the ROI width (1 RW = approx 6 cm)
+* `velocity`: total_distance divided by the time the animal was awake
+* `morning_anticipation`: Fraction of the time spent moving in the last 6 hours before the DL transition which occured in the last 3 hours
+* `evening_anticipation`: Fraction of the time spent moving in the last 6 hours before the LD transition which occured in the last 3 hours
+
+Time units are seconds because the t column produced when loading ethoscope data (`t`) is in seconds
+
+
 # How to install
 
 ## 1. Download this repository
