@@ -580,7 +580,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   velocity_analysis[, asleep := NULL]
 
   #### -- Anticipation analysis
-  anticipation_analysis <- analyse_anticipation(dt_curated)
+  anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment+1])
 
 
   output_dt <- list(sleep_fractions, sleep_architecture, sleep_latency, velocity_analysis, anticipation_analysis)
