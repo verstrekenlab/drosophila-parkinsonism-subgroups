@@ -131,7 +131,9 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
   . <- asleep <- id <- phase <- NULL
 
   sleep_fractions <- dt[, .(sleep_fraction = mean(asleep)), by = .(phase, id, day)][,
-    .(sleep_fraction = mean(sleep_fraction)),
+    .(
+      sleep_fraction = mean(sleep_fraction)  # across days
+    ),
     by = .(phase, id)
   ]
 
@@ -151,8 +153,8 @@ analyse_sleep_architecture <- function(dt_bouts) {
       by = .(id, phase, asleep, day)
     ][,
       .(
-        bout_duration = mean(bout_duration),
-        bout_count = mean(bout_count)
+        bout_duration = mean(bout_duration),    # across days
+        bout_count = mean(bout_count)           # across days
       ),
       by = .(id, phase, asleep)
     ]
@@ -173,8 +175,8 @@ latency_descriptor <- function(dt_bouts) {
 
   # compute latency to longest bout
   latency_analysis <- data.table::data.table(
-    latency = latency / 60,
-    latency_to_longest_bout = latency_to_longest_bout / 60
+    latency = latency / 60, # to mins
+    latency_to_longest_bout = latency_to_longest_bout / 60 # to mins
   )
   return(latency_analysis)
 }
@@ -214,8 +216,8 @@ analyse_velocity <- function(dt, time_window_length, by_phase=FALSE, roi_width=0
     ),
     by = grouping_vars
   ][, .(
-    total_distance = mean(total_distance),
-    velocity = mean(velocity)
+    total_distance = mean(total_distance),  # across days
+    velocity = mean(velocity)               # across days
   ),
     by = grouping_vars_mean
   ]
@@ -253,10 +255,11 @@ analyse_anticipation <- function(
 
   dt_anticipation <- dt[
     !is.na(anticipation_period),
-    .(moving = sum(moving)),
+    .(
+      moving = sum(moving)
+    ),
     by = .(id, day, anticipation_period)
   ]
-
   anticipation_analysis <- NULL
 
   
@@ -271,8 +274,9 @@ analyse_anticipation <- function(
 
   anticipation_analysis <- dt_anticipation[,
     .(
-      morning_anticipation = 100 * mean(morning_anticipation),
-      evening_anticipation = 100 * mean(evening_anticipation)
+      n_days = .N,
+      morning_anticipation = 100 * mean(morning_anticipation),    # across days
+      evening_anticipation = 100 * mean(evening_anticipation)     # across days
     ),
     by = id
   ]
