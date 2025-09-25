@@ -584,5 +584,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
     merge(x, y, by = c("id"), all.x = TRUE, all.y = FALSE)
   }, output_dt)
 
+  data.table::fwrite(x = output_dt, file = paste(data_dir, "/output/ID", batch_id, ".csv", sep = ""))
+
   return(output_dt)
 }
