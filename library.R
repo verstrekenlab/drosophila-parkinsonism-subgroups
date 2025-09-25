@@ -14,9 +14,12 @@ library(sleepr)
 
 ## - Parameters
 start_day_experiment <- 1
-stop_day_experiment <- 6
+stop_day_experiment <- 5
 ethoscope_cache <- "/ethoscope_data/natalie_cache"
 ROOT <- here::here()
+# ethoscope_cache <- "INSERT"
+# ROOT <- "INSERT"
+
 time_window_length <- 10
 
 ## -- Ethoscope QC
@@ -127,7 +130,11 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 
   . <- asleep <- id <- phase <- NULL
 
-  sleep_fractions <- dt[, .(sleep_fraction = mean(asleep)), by = .(phase, id)]
+  sleep_fractions <- dt[, .(sleep_fraction = mean(asleep)), by = .(phase, id, day)][,
+    .(sleep_fraction = mean(sleep_fraction)),
+    by = .(phase, id)
+  ]
+
   sleep_fractions$asleep <- TRUE
   return(sleep_fractions)
 
@@ -136,10 +143,16 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 ## -- Sleep architecture
 analyse_sleep_architecture <- function(dt_bouts) {
 
-    duration <- asleep <- phase <- id <- .N <- . <- NULL
+    duration <- asleep <- phase <- day <- id <- .N <- . <- NULL
     architecture <- dt_bouts[, .(
-        bout_duration = mean(duration),
+        bout_duration = mean(duration) / 60, # to mins
         bout_count = .N
+      ),
+      by = .(id, phase, asleep, day)
+    ][,
+      .(
+        bout_duration = mean(bout_duration),
+        bout_count = mean(bout_count)
       ),
       by = .(id, phase, asleep)
     ]
@@ -160,8 +173,8 @@ latency_descriptor <- function(dt_bouts) {
 
   # compute latency to longest bout
   latency_analysis <- data.table::data.table(
-    latency = latency,
-    latency_to_longest_bout = latency_to_longest_bout
+    latency = latency / 60,
+    latency_to_longest_bout = latency_to_longest_bout / 60
   )
   return(latency_analysis)
 }
@@ -185,23 +198,27 @@ analyse_latency <- function(dt_bouts) {
 
 ## -- Velocity
 #' Compute average max velocity for each fly throughout the experiment
-analyse_velocity <- function(dt, time_window_length, by_phase=FALSE) {
+analyse_velocity <- function(dt, time_window_length, by_phase=FALSE, roi_width=0.055) {
 
   . <- sum_movement <- total_distance <- velocity <- seconds_passed <- .N <- `:=` <- NULL
 
-  grouping_vars = c("asleep", "id")
+  grouping_vars <- c("asleep", "id", "day")
+  grouping_vars_mean <- c("asleep", "id")
   if (by_phase) grouping_vars <- c(grouping_vars, "phase")
+  if (by_phase) grouping_vars_mean <- c(grouping_vars_mean, "phase")
 
   velocity_analysis <- dt[,
     .(
-      total_distance = sum(sum_movement),
-      seconds_passed = .N * time_window_length
+      total_distance = sum(sum_movement * roi_width) / (tail(t, 1) - head(t, 1)),
+      velocity = mean(max_velocity)
     ),
     by = grouping_vars
+  ][, .(
+    total_distance = mean(total_distance),
+    velocity = mean(velocity)
+  ),
+    by = grouping_vars_mean
   ]
-
-  velocity_analysis[, velocity := total_distance / seconds_passed]
-  velocity_analysis[, seconds_passed := NULL]
 
   return(velocity_analysis)
 }
@@ -218,19 +235,19 @@ analyse_anticipation <- function(
   dt[, t_day := t %% behavr::days(1)]
 
   dt[
-    t_day >= morning[1] & t_day < morning[2],
+    t_day %between% c(morning[1], morning[2]),
     anticipation_period := "morning_bl"
   ]
   dt[
-    t_day >= morning[2] & t_day < morning[3],
+    t_day %between% c(morning[2], morning[3]),
     anticipation_period := "morning_sl"
   ]
   dt[
-    t_day >= evening[1] & t_day < evening[2],
+    t_day %between% c(evening[1], evening[2]),
     anticipation_period := "evening_bl"
   ]
   dt[
-    t_day >= evening[2] & t_day < evening[3],
+    t_day %between% c(evening[2], evening[3]),
     anticipation_period := "evening_sl"
   ]
 
@@ -445,7 +462,7 @@ custom_annotation_wrapper <- function(custom_function) {
 
 sum_movement_detector <- custom_annotation_wrapper(movement_detector_enclosed("sum", "xy_dist_log10x1000", "sum_movement", "micromovement", log10x1000_inv))
 
-analyse_ID_batch <- function(batch_id) {
+analyse_ID_batch <- function(batch_id, testing=FALSE) {
 
   data_dir <- paste0(ROOT, "/ID", batch_id)
   dir.create(paste(data_dir, "/output", sep = ""), showWarnings = F)
@@ -461,10 +478,11 @@ analyse_ID_batch <- function(batch_id) {
 
   # clean empty rows
   metadata <- metadata[complete.cases(metadata), ]
-
   # make sure date is read as a character
   metadata$date <- as.character(metadata$date)
-  metadata <- metadata[status == "OK", ][1:3, ]
+  metadata <- metadata[status == "OK", ]
+
+  if (testing) metadata <- metadata[1:3, ]
 
   #4: Linking, link metadata with ethoscope
   metadata <- scopr::link_ethoscope_metadata(metadata, result_dir = file.path(data_dir, "raw_data"))
@@ -552,7 +570,7 @@ analyse_ID_batch <- function(batch_id) {
 
   #### -- Average velocity
   velocity_analysis <- analyse_velocity(dt_curated, time_window_length, by_phase=FALSE)
-  velocity_analysis <- velocity_analysis[asleep == TRUE]
+  velocity_analysis <- velocity_analysis[asleep == FALSE]
   velocity_analysis[, asleep := NULL]
 
   #### -- Anticipation analysis
