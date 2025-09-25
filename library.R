@@ -5,6 +5,12 @@
 # The functions are organized in sections, which start with the header ## --
 
 
+library(data.table)
+library(behavr)
+library(scopr)
+library(sleepr)
+
+
 
 ## - Parameters
 start_day_experiment <- 1
