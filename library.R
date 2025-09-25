@@ -10,7 +10,7 @@
 start_day_experiment <- 1
 stop_day_experiment <- 6
 ethoscope_cache <- "/ethoscope_data/natalie_cache"
-ROOT <- "/home/vibflysleep/FlySleepLab_Dropbox/Antonio/PVLab/Natalie/PD/drosophila-parkinsonism-subgroups"
+ROOT <- here::here()
 time_window_length <- 10
 
 ## -- Ethoscope QC
