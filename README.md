@@ -5,7 +5,10 @@ This repository contains the R code required to obtain the sleep features comput
 
 
 ## How to run
+
+```
 Rscript main.R
+```
 
 ## What is produced
 The file `2026_kaempf_sleep_features.csv` contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
