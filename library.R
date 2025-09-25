@@ -122,8 +122,6 @@ merge_behavr_all <- function(x, y, merge_meta=TRUE) {
   return(merged)
 }
 
-
-
 ## -- Mean fraction sleep day night
 analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 
@@ -147,7 +145,6 @@ analyse_sleep_architecture <- function(dt_bouts) {
     ]
     return(architecture)
 }
-
 
 ## -- Latency
 latency_descriptor <- function(dt_bouts) {
@@ -190,7 +187,7 @@ analyse_latency <- function(dt_bouts) {
 #' Compute average max velocity for each fly throughout the experiment
 analyse_velocity <- function(dt, time_window_length, by_phase=FALSE) {
 
-  . <- sum_movement <- total_distance <- total_distance <- velocity <- seconds_passed <- .N <- `:=` <- NULL
+  . <- sum_movement <- total_distance <- velocity <- seconds_passed <- .N <- `:=` <- NULL
 
   grouping_vars = c("asleep", "id")
   if (by_phase) grouping_vars <- c(grouping_vars, "phase")
