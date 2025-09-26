@@ -10,11 +10,11 @@ options(error = traceback)      # or options(error = recover) for interactive de
 
 BATCHES <- c("0061")
 
-out <- list()
-for (batch_id in BATCHES) {
-    sleep_features <- analyse_ID_batch_old(batch_id, testing= TRUE)
-    out <- c(out, list(sleep_features))
-}
+# out <- list()
+# for (batch_id in BATCHES) {
+#     sleep_features <- analyse_ID_batch_old(batch_id, testing= TRUE)
+#     out <- c(out, list(sleep_features))
+# }
 
 out <- list()
 for (batch_id in BATCHES) {

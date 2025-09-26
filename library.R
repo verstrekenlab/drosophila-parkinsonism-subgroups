@@ -573,7 +573,6 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   }
   #### -- Sleep fractions in D and L phases
   sleep_fractions <- analyse_mean_fraction_of_sleep_day_vs_night(dt_curated)
-
   setnames(sleep_fractions, "L", "sleep_fraction_day")
   setnames(sleep_fractions, "D", "sleep_fraction_night")
 
@@ -585,8 +584,6 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   setnames(sleep_architecture, "bout_duration", "mean_bout_length_night")
   setnames(sleep_architecture, "bout_count", "n_bouts_night")
   
-
-
   #### -- Latency to sleep
   sleep_latency <- analyse_latency(dt_bouts)
   sleep_latency <- sleep_latency[phase == "D" & asleep == TRUE]
@@ -601,10 +598,8 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   #### -- Anticipation analysis
   anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment])
   anticipation_analysis <- anticipation_analysis[, c(id_columns, "morning_anticipation"), with = FALSE]
-
-  
+ 
   output_dt <- list(sleep_fractions, sleep_latency, sleep_architecture, anticipation_analysis, velocity_analysis)
-
 
   output_dt <- Reduce(function(x, y) {
     merge(x, y, by = id_columns, all.x = TRUE, all.y = FALSE)
