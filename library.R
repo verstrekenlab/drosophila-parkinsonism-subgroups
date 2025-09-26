@@ -147,6 +147,8 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
   . <- asleep <- id <- phase <- NULL
 
   sleep_fractions <- dt[, .(sleep_fraction = mean(asleep)), by = c("phase", id_columns)]
+  sleep_fractions <- data.table::dcast(sleep_fractions, as.formula(paste0(paste(id_columns, collapse = " + "), " ~ phase")), value.var = "sleep_fraction")
+
   return(sleep_fractions)
 }
 
@@ -572,8 +574,6 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   #### -- Sleep fractions in D and L phases
   sleep_fractions <- analyse_mean_fraction_of_sleep_day_vs_night(dt_curated)
 
-  # cast
-  sleep_fractions <- data.table::dcast(sleep_fractions, as.formula(paste0(paste(id_columns, collapse = " + "), " ~ phase")), value.var = "sleep_fraction")
   setnames(sleep_fractions, "L", "sleep_fraction_day")
   setnames(sleep_fractions, "D", "sleep_fraction_night")
 
