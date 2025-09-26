@@ -297,7 +297,6 @@ analyse_anticipation <- function(
 log10x1000_inv <- function(x) { return(10 ^ (x / 1000))}
 
 
-
 ## -- Movement detector
 #' Generic function to aggregate movement with some statistic
 #' @param data  [data.table] containing behavioural variable from or one multiple animals.
@@ -602,9 +601,8 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   #### -- Anticipation analysis
   anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment])
   anticipation_analysis <- anticipation_analysis[, c(id_columns, "morning_anticipation"), with = FALSE]
+
   
-
-
   output_dt <- list(sleep_fractions, sleep_latency, sleep_architecture, anticipation_analysis, velocity_analysis)
 
 
@@ -612,7 +610,22 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
     merge(x, y, by = id_columns, all.x = TRUE, all.y = FALSE)
   }, output_dt)
 
+  export_table(output_dt, "sleep_fraction_night", batch_id, "A2", data_dir = data_dir)
+  export_table(output_dt, "latency_to_longest_bout_night", batch_id, "A4", data_dir = data_dir)
+  export_table(output_dt, "mean_bout_length_night", batch_id, "A4", data_dir = data_dir)
+  export_table(output_dt, "n_bouts_night", batch_id, "A4", data_dir = data_dir)
+  export_table(output_dt, "morning_anticipation", batch_id, "A9", data_dir = data_dir)
+  export_table(output_dt, "velocity_if_awake", batch_id, "B1", data_dir = data_dir)
+  export_table(output_dt, "total_distance", batch_id, "B4", data_dir = data_dir)
+  
   data.table::fwrite(x = output_dt, file = paste(data_dir, "/output/ID", batch_id, ".csv", sep = ""))
 
   return(output_dt)
+}
+
+
+export_table <- function(dt, feature, batch_id, parameter_index, data_dir) {
+  dt <- data.table::copy(dt)
+  dt$export_table <- dt[[feature]] 
+  write.csv(dt[, .(export_table)], file(paste0(data_dir,"/output/freq_velocity_table/ID",batch_id,"_", parameter_index, "_", feature, ".csv")))
 }
