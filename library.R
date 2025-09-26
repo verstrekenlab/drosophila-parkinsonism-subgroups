@@ -253,11 +253,11 @@ analyse_anticipation <- function(
 
   dt[
     t_day %between% c(morning[1], morning[2]),
-    anticipation_period := "morning_bl"
+    anticipation_period := "period_1"
   ]
   dt[
     t_day %between% c(morning[2], morning[3]),
-    anticipation_period := "morning_sl"
+    anticipation_period := "period_2"
   ]
 
   dt_anticipation <- dt[
@@ -276,7 +276,7 @@ analyse_anticipation <- function(
     value.var = "moving"
   )
 
-  dt_anticipation[, morning_anticipation := (morning_sl - morning_bl) / (morning_sl + morning_bl)]
+  dt_anticipation[, morning_anticipation := (period_2 - period_1) / (period_2 + period_1)]
 
   anticipation_analysis <- average_over_days(
     dt_anticipation,
