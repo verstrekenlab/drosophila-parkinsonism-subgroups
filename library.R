@@ -19,7 +19,7 @@ ethoscope_cache <- "/ethoscope_data/natalie_cache"
 ROOT <- here::here()
 # ethoscope_cache <- "INSERT"
 # ROOT <- "INSERT"
-
+id_columns <- c("id", "genotype")
 time_window_length <- 10
 
 ## -- Ethoscope QC
@@ -47,9 +47,20 @@ ethoscope_QC <- function(dt, title, output_path){
   )
 }
 
-average_over_days <- function(data, variables, grouping) {
-  stopifnot(all(c(variables, grouping, "day") %in% colnames(data)))
-  dt <- data[, lapply(.SD, mean), by = grouping, .SDcols = variables]
+average_over_days <- function(data, variables, grouping, days = c(1, 2, 3, 4), weighted = FALSE) {
+   
+  weighted_mean <- function(x) {
+    if (length(x)==4) {
+      return((x[1]*25 + x[2]*13 + x[3]*7+x[4]*3)/48)
+    }
+  }
+
+  if (weighted) {
+    dt <- data[day %in% days, lapply(.SD, weighted_mean), by = grouping, .SDcols = variables]
+  } else {
+      dt <- data[day %in% days, lapply(.SD, mean), by = grouping, .SDcols = variables]
+
+  }
   return(dt)
 }
 
@@ -135,15 +146,8 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 
   . <- asleep <- id <- phase <- NULL
 
-  sleep_fractions <- average_over_days(
-    dt[, .(sleep_fraction = mean(asleep)), by = .(phase, id, day)],
-    variables = "sleep_fraction",
-    grouping = c("phase", "id")
-  )
-
-  sleep_fractions$asleep <- TRUE
+  sleep_fractions <- dt[, .(sleep_fraction = mean(asleep)), by = c("phase", id_columns)]
   return(sleep_fractions)
-
 }
 
 ## -- Sleep architecture
@@ -155,10 +159,11 @@ analyse_sleep_architecture <- function(dt_bouts) {
           bout_duration = mean(duration) / 60, # to mins
           bout_count = .N
         ),
-        by = .(id, phase, asleep, day)
+        by = c(id_columns, "phase", "asleep", "day")
       ],
       variables = c("bout_duration", "bout_count"),
-      grouping = c("id", "phase", "asleep")
+      grouping = c(id_columns, "phase", "asleep"),
+      weighted = TRUE
     )
   
     return(architecture)
@@ -186,12 +191,15 @@ latency_descriptor <- function(dt_bouts) {
 
 analyse_latency <- function(dt_bouts) {
   
-  latency_to_longest_bout <- `:=` <- . <- day <- .SD <- id <- phase <- latency <- asleep <- NULL
+  latency_to_longest_bout <- `:=` <- . <- day <- .SD <- phase <- latency <- asleep <- NULL
+
+  latency_analysis <- dt_bouts[, latency_descriptor(.SD), by = c("asleep", "phase", id_columns, "day")]
 
   latency_analysis <- average_over_days(
-    dt_bouts[, latency_descriptor(.SD), by = .(asleep, phase, id, day)],
+    latency_analysis,
     variables = c("latency", "latency_to_longest_bout"),
-    grouping = c("asleep", "phase", "id")
+    grouping = c("asleep", "phase", id_columns),
+    weighted = TRUE
   )
 
   return(latency_analysis)
@@ -199,38 +207,42 @@ analyse_latency <- function(dt_bouts) {
 
 ## -- Velocity
 #' Compute average max velocity for each fly throughout the experiment
-analyse_velocity <- function(dt, time_window_length, by_phase=FALSE, roi_width=0.055) {
+analyse_velocity <- function(dt, by_phase=FALSE, roi_width = 0.055, deltaT=behavr::days(4)) {
 
-  . <- sum_movement <- total_distance <- velocity <- seconds_passed <- .N <- `:=` <- NULL
+  . <- sum_movement <- total_distance <- velocity <- .N <- `:=` <- NULL
 
-  grouping_vars <- c("asleep", "id", "day")
-  grouping_vars_mean <- c("asleep", "id")
+  grouping_vars <- id_columns
   if (by_phase) grouping_vars <- c(grouping_vars, "phase")
-  if (by_phase) grouping_vars_mean <- c(grouping_vars_mean, "phase")
-
 
   delta <- function(x) {
-    return(tail(x, 1) - head(x, 1))
+    return(max(x) - min(x))
   }
 
-  velocity_analysis <- average_over_days(
-    dt[,
-      .(
-        total_distance = sum(sum_movement * roi_width) / delta(t),
-        velocity = mean(max_velocity)
-      ),
-      by = grouping_vars
-    ],
-    variables = c("total_distance", "velocity"),
-    grouping = grouping_vars_mean
+
+  distance_analysis <- dt[,
+    .(
+      total_distance = sum(sum_movement[2:.N] * roi_width) / deltaT
+    ),
+    by = grouping_vars
+  ]
+
+  velocity_analysis <- dt[
+    moving == TRUE,
+    .(velocity_if_awake = mean(max_velocity)),
+    by = grouping_vars
+  ]
+
+  out <- merge(
+    velocity_analysis, distance_analysis[, c(id_columns, "total_distance"), with = FALSE],
+    by = id_columns, all.x=TRUE, all.y=TRUE
   )
 
-  return(velocity_analysis)
+  return(out)
 }
 
 ## -- Anticipation
 analyse_anticipation <- function(
-  dt, morning=behavr::hours(c(6, 9, 12)), evening=behavr::hours(c(18, 21, 24))
+  dt, morning=behavr::hours(c(18, 21, 24))
 ){
   anticipation_period <- `:=` <- NULL
 
@@ -247,42 +259,38 @@ analyse_anticipation <- function(
     t_day %between% c(morning[2], morning[3]),
     anticipation_period := "morning_sl"
   ]
-  dt[
-    t_day %between% c(evening[1], evening[2]),
-    anticipation_period := "evening_bl"
-  ]
-  dt[
-    t_day %between% c(evening[2], evening[3]),
-    anticipation_period := "evening_sl"
-  ]
 
   dt_anticipation <- dt[
     !is.na(anticipation_period),
     .(
       moving = sum(moving)
     ),
-    by = .(id, day, anticipation_period)
+    by = c(id_columns, "day", "anticipation_period")
   ]
   anticipation_analysis <- NULL
 
-  
+
   dt_anticipation <- data.table::dcast(
-    dt_anticipation, id + day ~ anticipation_period,
+    dt_anticipation,
+    as.formula(paste0(paste(c(id_columns, "day"), collapse = " + "), " ~ anticipation_period")),
     value.var = "moving"
   )
 
-
   dt_anticipation[, morning_anticipation := (morning_sl - morning_bl) / (morning_sl + morning_bl)]
-  dt_anticipation[, evening_anticipation := (evening_sl - evening_bl) / (evening_sl + evening_bl)]
 
   anticipation_analysis <- average_over_days(
     dt_anticipation,
-    variables = c("morning_anticipation", "evening_anticipation"),
-    grouping = "id"
+    variables = c("morning_anticipation"),
+    grouping = id_columns,
+    weighted = FALSE
   )
   anticipation_analysis[, morning_anticipation := 100 * morning_anticipation]
-  anticipation_analysis[, evening_anticipation := 100 * evening_anticipation]
 
+  # NOTE: We made the mistake of dividing by 3 days instead of 4 in the original analysis
+  # This line is placed here for consistency
+  # This error is not critical because the morning anticipation of all flies is scaled by the same number (4/3)
+  anticipation_analysis[, morning_anticipation := 4/3 * morning_anticipation]
+  
   return(anticipation_analysis)
 }
 
@@ -519,17 +527,23 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
 
   dt <- merge_behavr_all(dt_sleep, dt_movement[, .(id, t, sum_movement)])
 
+  # NOTE: Why keeping one hour before and one hour after the day limits?
+  dt_curated <- behavr::rejoin(dt[t %between% c(days(start_day_experiment)-3600, days(stop_day_experiment)+3600), ])
 
-  dt_curated <- dt[t > behavr::days(start_day_experiment) & t < behavr::days(stop_day_experiment), ]
+  deltaT <- dt_curated[, .(deltaT = max(t)-min(t))]$deltaT / behavr::days(1)
 
   # NOTE Wrapping in invisible()
   # because for some reason the data tables are getting printed
   invisible({
     dt_curated[, day := floor(t / behavr::days(1))]
-    dt_curated[, phase := ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D")]
-    dt_bouts <- sleepr::bout_analysis(var = asleep, data = dt_curated)
+    dt_curated[, phase := factor(ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D"), levels = c("L", "D"))]
+    dt_bouts <- dt_curated[, 
+      sleepr::bout_analysis(var = asleep, data = .SD),
+      by = id_columns
+    ]
+
     dt_bouts[, day := floor(t / behavr::days(1))]
-    dt_bouts[, phase := ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D")]
+    dt_bouts[, phase := factor(ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D"), levels = c("L", "D"))]
     dt_bouts[, bout_id := seq_len(nrow(dt_bouts))]
   })
 
@@ -558,14 +572,20 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   }
   #### -- Sleep fractions in D and L phases
   sleep_fractions <- analyse_mean_fraction_of_sleep_day_vs_night(dt_curated)
-  sleep_fractions <- data.table::dcast(sleep_fractions, id ~ paste0("asleep_", phase), value.var = "sleep_fraction")
 
+  # cast
+  sleep_fractions <- data.table::dcast(sleep_fractions, as.formula(paste0(paste(id_columns, collapse = " + "), " ~ phase")), value.var = "sleep_fraction")
+  setnames(sleep_fractions, "L", "sleep_fraction_day")
+  setnames(sleep_fractions, "D", "sleep_fraction_night")
 
   #### -- Sleep architecture (bout count and duration)
   sleep_architecture <- analyse_sleep_architecture(dt_bouts)
   sleep_architecture <- sleep_architecture[phase == "D" & asleep == TRUE]
   sleep_architecture[, phase := NULL]
   sleep_architecture[, asleep := NULL]
+  setnames(sleep_architecture, "bout_duration", "mean_bout_length_night")
+  setnames(sleep_architecture, "bout_count", "n_bouts_night")
+  
 
 
   #### -- Latency to sleep
@@ -573,22 +593,23 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   sleep_latency <- sleep_latency[phase == "D" & asleep == TRUE]
   sleep_latency[, phase := NULL]
   sleep_latency[, asleep := NULL]
+  sleep_latency[, latency := NULL]
+  setnames(sleep_latency, "latency_to_longest_bout", "latency_to_longest_bout_night")
 
   #### -- Average velocity
-  velocity_analysis <- analyse_velocity(dt_curated, time_window_length, by_phase=FALSE)
-  velocity_analysis <- velocity_analysis[asleep == FALSE]
-  velocity_analysis[, asleep := NULL]
+  velocity_analysis <- analyse_velocity(dt_curated, by_phase = FALSE, deltaT = deltaT)
 
   #### -- Anticipation analysis
-  anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment+1])
-  anticipation_analysis <- anticipation_analysis[, .(id, morning_anticipation)]
+  anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment])
+  anticipation_analysis <- anticipation_analysis[, c(id_columns, "morning_anticipation"), with = FALSE]
+  
 
 
-  output_dt <- list(sleep_fractions, sleep_architecture, sleep_latency, velocity_analysis, anticipation_analysis)
+  output_dt <- list(sleep_fractions, sleep_latency, sleep_architecture, anticipation_analysis, velocity_analysis)
 
 
   output_dt <- Reduce(function(x, y) {
-    merge(x, y, by = c("id"), all.x = TRUE, all.y = FALSE)
+    merge(x, y, by = id_columns, all.x = TRUE, all.y = FALSE)
   }, output_dt)
 
   data.table::fwrite(x = output_dt, file = paste(data_dir, "/output/ID", batch_id, ".csv", sep = ""))
