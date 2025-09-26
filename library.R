@@ -47,6 +47,11 @@ ethoscope_QC <- function(dt, title, output_path){
   )
 }
 
+average_over_days <- function(data, variables, grouping) {
+  stopifnot(all(c(variables, grouping, "day") %in% colnames(data)))
+  dt <- data[, lapply(.SD, mean), by = grouping, .SDcols = variables]
+  return(dt)
+}
 
 ## -- Merge behavr
 #' Merge several behavr tables into a single dataframe
@@ -130,12 +135,11 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 
   . <- asleep <- id <- phase <- NULL
 
-  sleep_fractions <- dt[, .(sleep_fraction = mean(asleep)), by = .(phase, id, day)][,
-    .(
-      sleep_fraction = mean(sleep_fraction)  # across days
-    ),
-    by = .(phase, id)
-  ]
+  sleep_fractions <- average_over_days(
+    dt[, .(sleep_fraction = mean(asleep)), by = .(phase, id, day)],
+    variables = "sleep_fraction",
+    grouping = c("phase", "id")
+  )
 
   sleep_fractions$asleep <- TRUE
   return(sleep_fractions)
@@ -146,18 +150,17 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 analyse_sleep_architecture <- function(dt_bouts) {
 
     duration <- asleep <- phase <- day <- id <- .N <- . <- NULL
-    architecture <- dt_bouts[, .(
-        bout_duration = mean(duration) / 60, # to mins
-        bout_count = .N
-      ),
-      by = .(id, phase, asleep, day)
-    ][,
-      .(
-        bout_duration = mean(bout_duration),    # across days
-        bout_count = mean(bout_count)           # across days
-      ),
-      by = .(id, phase, asleep)
-    ]
+    architecture <- average_over_days(
+      dt_bouts[, .(
+          bout_duration = mean(duration) / 60, # to mins
+          bout_count = .N
+        ),
+        by = .(id, phase, asleep, day)
+      ],
+      variables = c("bout_duration", "bout_count"),
+      grouping = c("id", "phase", "asleep")
+    )
+  
     return(architecture)
 }
 
@@ -185,15 +188,11 @@ analyse_latency <- function(dt_bouts) {
   
   latency_to_longest_bout <- `:=` <- . <- day <- .SD <- id <- phase <- latency <- asleep <- NULL
 
-  latency_analysis <- dt_bouts[, latency_descriptor(.SD), by = .(asleep, phase, id, day)]
-  
-  latency_analysis <- latency_analysis[,
-    .(
-      latency = mean(latency),                                # across days
-      latency_to_longest_bout = mean(latency_to_longest_bout) # across days
-    ),
-    by = .(asleep, phase, id)
-  ]
+  latency_analysis <- average_over_days(
+    dt_bouts[, latency_descriptor(.SD), by = .(asleep, phase, id, day)],
+    variables = c("latency", "latency_to_longest_bout"),
+    grouping = c("asleep", "phase", "id")
+  )
 
   return(latency_analysis)
 }
@@ -209,18 +208,22 @@ analyse_velocity <- function(dt, time_window_length, by_phase=FALSE, roi_width=0
   if (by_phase) grouping_vars <- c(grouping_vars, "phase")
   if (by_phase) grouping_vars_mean <- c(grouping_vars_mean, "phase")
 
-  velocity_analysis <- dt[,
-    .(
-      total_distance = sum(sum_movement * roi_width) / (tail(t, 1) - head(t, 1)),
-      velocity = mean(max_velocity)
-    ),
-    by = grouping_vars
-  ][, .(
-    total_distance = mean(total_distance),  # across days
-    velocity = mean(velocity)               # across days
-  ),
-    by = grouping_vars_mean
-  ]
+
+  delta <- function(x) {
+    return(tail(x, 1) - head(x, 1))
+  }
+
+  velocity_analysis <- average_over_days(
+    dt[,
+      .(
+        total_distance = sum(sum_movement * roi_width) / delta(t),
+        velocity = mean(max_velocity)
+      ),
+      by = grouping_vars
+    ],
+    variables = c("total_distance", "velocity"),
+    grouping = grouping_vars_mean
+  )
 
   return(velocity_analysis)
 }
@@ -272,16 +275,13 @@ analyse_anticipation <- function(
   dt_anticipation[, morning_anticipation := (morning_sl - morning_bl) / (morning_sl + morning_bl)]
   dt_anticipation[, evening_anticipation := (evening_sl - evening_bl) / (evening_sl + evening_bl)]
 
-  anticipation_analysis <- dt_anticipation[,
-    .(
-      n_days = .N,
-      morning_anticipation = 100 * mean(morning_anticipation),    # across days
-      evening_anticipation = 100 * mean(evening_anticipation)     # across days
-    ),
-    by = id
-  ]
-
-  anticipation_analysis <- anticipation_analysis[, .(id, morning_anticipation)]
+  anticipation_analysis <- average_over_days(
+    dt_anticipation,
+    variables = c("morning_anticipation", "evening_anticipation"),
+    grouping = "id"
+  )
+  anticipation_analysis[, morning_anticipation := 100 * morning_anticipation]
+  anticipation_analysis[, evening_anticipation := 100 * evening_anticipation]
 
   return(anticipation_analysis)
 }
@@ -581,6 +581,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
 
   #### -- Anticipation analysis
   anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment+1])
+  anticipation_analysis <- anticipation_analysis[, .(id, morning_anticipation)]
 
 
   output_dt <- list(sleep_fractions, sleep_architecture, sleep_latency, velocity_analysis, anticipation_analysis)
