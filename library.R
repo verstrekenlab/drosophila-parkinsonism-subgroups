@@ -25,11 +25,17 @@ time_window_length <- 10
 ## -- Ethoscope QC
 #' Visualize data segregated by ethoscope
 #' This is useful to spot potential batch effects driven by each ethoscope device
+#' Requires ggplot2 and ggetho
 #' @import ggetho
 #' @import ggplot2
 ethoscope_QC <- function(dt, title, output_path){
 
   asleep <- NULL
+  if (!requireNamespace("ggetho", quietly = TRUE)) {
+    warning("Please install ggplot2 and ggetho to get ethoscope QC plots")
+    return(NULL)
+  }
+
 
   dt_bin <- behavr::rejoin(
     behavr::bin_apply_all(dt, y = "asleep", x_bin_length = behavr::mins(30), FUN = mean)
@@ -141,6 +147,19 @@ merge_behavr_all <- function(x, y, merge_meta=TRUE) {
   return(merged)
 }
 
+#' @import data.table
+export_table <- function(dt, feature, batch_id, parameter_index, data_dir) {
+  dt <- data.table::copy(dt)
+  dt$export_table <- dt[[feature]] 
+  write.csv(
+    x = dt[, .(export_table)],
+    file = file.path(
+      data_dir, "/output/freq_velocity_table",
+      paste0("ID", batch_id, "_", parameter_index, "_", feature, ".csv")
+    )
+  )
+}
+
 ## -- Mean fraction sleep day night
 analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 
@@ -155,7 +174,7 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 ## -- Sleep architecture
 analyse_sleep_architecture <- function(dt_bouts) {
 
-    duration <- asleep <- phase <- day <- id <- .N <- . <- NULL
+    duration <- .N <- . <- NULL
     architecture <- average_over_days(
       dt_bouts[, .(
           bout_duration = mean(duration) / 60, # to mins
@@ -209,7 +228,7 @@ analyse_latency <- function(dt_bouts) {
 
 ## -- Velocity
 #' Compute average max velocity for each fly throughout the experiment
-analyse_velocity <- function(dt, by_phase=FALSE, roi_width = 0.055, deltaT=behavr::days(4)) {
+analyse_velocity <- function(dt, by_phase = FALSE, roi_width = 0.055, deltaT = behavr::days(4)) {
 
   . <- sum_movement <- total_distance <- velocity <- .N <- `:=` <- NULL
 
@@ -485,23 +504,33 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   dir.create(paste(data_dir, "/output/quality_control", sep = ""), showWarnings = F)
   dir.create(paste(data_dir, "/output/freq_velocity_table", sep = ""), showWarnings = F)
 
-
+  # Read the metadata: a description of which flies to load and information about them (genotype, age, etc)
   metadata <- data.table::fread(file.path(
     data_dir,
     paste("metadata_ID", batch_id, ".csv", sep = ""))
   )
 
-  # clean empty rows
-  metadata <- metadata[complete.cases(metadata), ]
-  # make sure date is read as a character
+  # Make sure date is read as a character
   metadata$date <- as.character(metadata$date)
-  metadata <- metadata[status == "OK", ]
 
+  # Curate data
+  metadata <- metadata[complete.cases(metadata), ]
+  metadata <- metadata[status == "OK", ]
   if (testing) metadata <- metadata[1:3, ]
 
-  #4: Linking, link metadata with ethoscope
+  # Link ethoscope metadata to specific sqlite (dbfiles) in the ethoscope_database
+  # This function finds which sqlite file contains the data of each fly in the metadata
   metadata <- scopr::link_ethoscope_metadata(metadata, result_dir = file.path(data_dir, "raw_data"))
 
+  # NOTE: Why keeping one hour before and one hour after the day limits?
+  t_0 <- days(start_day_experiment)-3600
+  t_last <- days(stop_day_experiment)+3600
+
+  # Decide whether each fly is asleep or not every 10 seconds
+  # Sleep = immobility for 300 seconds or more (5 mins)
+  # Movement = the fly moves from one frame to next more than 0.0042 units of the ROI width
+  # The fly is asleep for 10 seconds if it spent those 10 seconds and at least
+  # the immediate 300 seconds prior, in an immobile state
   dt_sleep <- scopr::load_ethoscope(
     metadata,
     FUN = sleepr::sleep_annotation,
@@ -514,6 +543,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
     time_window_length = time_window_length
   )
 
+  # Sum the distance travelled by each fly every 10 seconds
   dt_movement <- scopr::load_ethoscope(
     metadata,
     FUN = sum_movement_detector,
@@ -521,56 +551,58 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
     curate = FALSE,
     cache = ethoscope_cache,
     verbose = TRUE,
-    velocity_correction_coef = 0.0042,
-    min_time_immobile = 300,
     time_window_length = time_window_length
   )
 
+  # Combine both variables into a single data frame
   dt <- merge_behavr_all(dt_sleep, dt_movement[, .(id, t, sum_movement)])
 
-  # NOTE: Why keeping one hour before and one hour after the day limits?
-  dt_curated <- behavr::rejoin(dt[t %between% c(days(start_day_experiment)-3600, days(stop_day_experiment)+3600), ])
+  # Keep only from t_0 to t_last
+  # TODO: Can this be moved to min_time and max_time in load_ethoscope?
+  dt_curated <- behavr::rejoin(dt[t %between% c(t_0, t_last), ])
 
-  deltaT <- dt_curated[, .(deltaT = max(t)-min(t))]$deltaT / behavr::days(1)
+  deltaT <- t_last - t_0
+  stopifnot(max(dt_curated$t)-min(dt_curated$t) == deltaT)
+  deltaT <- deltaT / behavr::days(1) # to days
 
   # NOTE Wrapping in invisible()
   # because for some reason the data tables are getting printed
   invisible({
     dt_curated[, day := floor(t / behavr::days(1))]
     dt_curated[, phase := factor(ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D"), levels = c("L", "D"))]
+
+
     dt_bouts <- dt_curated[, 
       sleepr::bout_analysis(var = asleep, data = .SD),
       by = id_columns
     ]
-
     dt_bouts[, day := floor(t / behavr::days(1))]
     dt_bouts[, phase := factor(ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D"), levels = c("L", "D"))]
     dt_bouts[, bout_id := seq_len(nrow(dt_bouts))]
   })
 
-  ## Quality control per etoscope
-  if (requireNamespace("ggetho", quietly = TRUE)) {
-    ethoscope_codes <- unique(sapply(metadata$id, function(x) {
-      substr(x, 21, 26)
-    }))
+  ### -- Quality control per etoscope
+  ethoscope_codes <- unique(sapply(metadata$id, function(x) {
+    substr(x, 21, 26)
+  }))
 
-    sapply(seq_along(ethoscope_codes), function(i) {
-      ethoscope_ids <- unique(grep(
-        pattern = ethoscope_codes[i], x = dt$id, value = TRUE
-      ))
+  sapply(seq_along(ethoscope_codes), function(i) {
+    ethoscope_ids <- unique(grep(
+      pattern = ethoscope_codes[i], x = dt$id, value = TRUE
+    ))
 
-      output_plot <- file.path(
-        file.path(data_dir, "output", "quality_control"),
-        paste("ID", batch_id, "_graph_", ethoscope_codes[i], ".svg", sep = "")
-      )
+    output_plot <- file.path(
+      file.path(data_dir, "output", "quality_control"),
+      paste("ID", batch_id, "_graph_", ethoscope_codes[i], ".svg", sep = "")
+    )
 
-      ethoscope_QC(
-        dt_curated[id %in% ethoscope_ids, ],
-        title = ethoscope_codes[i],
-        output_path = output_plot
-      )
-    })
-  }
+    ethoscope_QC(
+      dt_curated[id %in% ethoscope_ids, ],
+      title = ethoscope_codes[i],
+      output_path = output_plot
+    )
+  })
+
   #### -- Sleep fractions in D and L phases
   sleep_fractions <- analyse_mean_fraction_of_sleep_day_vs_night(dt_curated)
   setnames(sleep_fractions, "L", "sleep_fraction_day")
@@ -599,12 +631,13 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment])
   anticipation_analysis <- anticipation_analysis[, c(id_columns, "morning_anticipation"), with = FALSE]
  
+  # Put it all together
   output_dt <- list(sleep_fractions, sleep_latency, sleep_architecture, anticipation_analysis, velocity_analysis)
-
   output_dt <- Reduce(function(x, y) {
     merge(x, y, by = id_columns, all.x = TRUE, all.y = FALSE)
   }, output_dt)
 
+  # Export
   export_table(output_dt, "sleep_fraction_night", batch_id, "A2", data_dir = data_dir)
   export_table(output_dt, "latency_to_longest_bout_night", batch_id, "A4", data_dir = data_dir)
   export_table(output_dt, "mean_bout_length_night", batch_id, "A4", data_dir = data_dir)
@@ -618,9 +651,3 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   return(output_dt)
 }
 
-
-export_table <- function(dt, feature, batch_id, parameter_index, data_dir) {
-  dt <- data.table::copy(dt)
-  dt$export_table <- dt[[feature]] 
-  write.csv(dt[, .(export_table)], file(paste0(data_dir,"/output/freq_velocity_table/ID",batch_id,"_", parameter_index, "_", feature, ".csv")))
-}
