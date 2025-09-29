@@ -16,7 +16,7 @@ library(sleepr)
 start_day_experiment <- 1
 stop_day_experiment <- 5
 ethoscope_cache <- "/ethoscope_data/natalie_cache"
-ROOT <- here::here()
+# ROOT <- here::here()
 # ethoscope_cache <- "INSERT"
 # ROOT <- "INSERT"
 id_columns <- c("id", "genotype")
@@ -64,8 +64,7 @@ average_over_days <- function(data, variables, grouping, days = c(1, 2, 3, 4), w
   if (weighted) {
     dt <- data[day %in% days, lapply(.SD, weighted_mean), by = grouping, .SDcols = variables]
   } else {
-      dt <- data[day %in% days, lapply(.SD, mean), by = grouping, .SDcols = variables]
-
+    dt <- data[day %in% days, lapply(.SD, mean), by = grouping, .SDcols = variables]
   }
   return(dt)
 }
@@ -148,13 +147,13 @@ merge_behavr_all <- function(x, y, merge_meta=TRUE) {
 }
 
 #' @import data.table
-export_table <- function(dt, feature, batch_id, parameter_index, data_dir) {
+export_table <- function(dt, feature, batch_id, parameter_index, output_dir) {
   dt <- data.table::copy(dt)
   dt$export_table <- dt[[feature]] 
   write.csv(
     x = dt[, .(export_table)],
     file = file.path(
-      data_dir, "/output/freq_velocity_table",
+      output_dir,
       paste0("ID", batch_id, "_", parameter_index, "_", feature, ".csv")
     )
   )
@@ -172,7 +171,7 @@ analyse_mean_fraction_of_sleep_day_vs_night <- function(dt) {
 }
 
 ## -- Sleep architecture
-analyse_sleep_architecture <- function(dt_bouts) {
+analyse_sleep_architecture <- function(dt_bouts, ...) {
 
     duration <- .N <- . <- NULL
     architecture <- average_over_days(
@@ -184,7 +183,7 @@ analyse_sleep_architecture <- function(dt_bouts) {
       ],
       variables = c("bout_duration", "bout_count"),
       grouping = c(id_columns, "phase", "asleep"),
-      weighted = TRUE
+      ...
     )
   
     return(architecture)
@@ -210,7 +209,7 @@ latency_descriptor <- function(dt_bouts) {
   return(latency_analysis)
 }
 
-analyse_latency <- function(dt_bouts) {
+analyse_latency <- function(dt_bouts, ...) {
   
   latency_to_longest_bout <- `:=` <- . <- day <- .SD <- phase <- latency <- asleep <- NULL
 
@@ -220,7 +219,7 @@ analyse_latency <- function(dt_bouts) {
     latency_analysis,
     variables = c("latency", "latency_to_longest_bout"),
     grouping = c("asleep", "phase", id_columns),
-    weighted = TRUE
+    ...
   )
 
   return(latency_analysis)
@@ -263,7 +262,7 @@ analyse_velocity <- function(dt, by_phase = FALSE, roi_width = 0.055, deltaT = b
 
 ## -- Anticipation
 analyse_anticipation <- function(
-  dt, morning=behavr::hours(c(18, 21, 24))
+  dt, morning = behavr::hours(c(18, 21, 24)), ...
 ){
   anticipation_period <- `:=` <- NULL
 
@@ -303,14 +302,14 @@ analyse_anticipation <- function(
     dt_anticipation,
     variables = c("morning_anticipation"),
     grouping = id_columns,
-    weighted = FALSE
+    ...
   )
   anticipation_analysis[, morning_anticipation := 100 * morning_anticipation]
 
   # NOTE: We made the mistake of dividing by 3 days instead of 4 in the original analysis
   # This line is placed here for consistency
   # This error is not critical because the morning anticipation of all flies is scaled by the same number (4/3)
-  anticipation_analysis[, morning_anticipation := 4/3 * morning_anticipation]
+  # anticipation_analysis[, morning_anticipation := 4/3 * morning_anticipation]
   
   return(anticipation_analysis)
 }
@@ -496,14 +495,21 @@ custom_annotation_wrapper <- function(custom_function) {
 
 sum_movement_detector <- custom_annotation_wrapper(movement_detector_enclosed("sum", "xy_dist_log10x1000", "sum_movement", "micromovement", log10x1000_inv))
 
-analyse_ID_batch <- function(batch_id, testing=FALSE) {
+analyse_ID_batch <- function(batch_id, root, testing=FALSE, weighted = FALSE) {
 
-  data_dir <- paste0(ROOT, "/ID", batch_id)
-  dir.create(paste(data_dir, "/output", sep = ""), showWarnings = F)
-  dir.create(paste(data_dir, "/output/arousal", sep = ""), showWarnings = F)
-  dir.create(paste(data_dir, "/output/quality_control", sep = ""), showWarnings = F)
-  dir.create(paste(data_dir, "/output/freq_velocity_table", sep = ""), showWarnings = F)
+  data_dir <- paste0(root, "/ID", batch_id)
+  output_dir <- file.path(data_dir, "output_cv3")
+  dir.create(output_dir, showWarnings = F)
+  # dir.create(paste(data_dir, "/output/arousal", sep = ""), showWarnings = F)
+  dir.create(file.path(output_dir, "quality_control"), showWarnings = F)
+  # dir.create(file.path(output_dir, "freq_velocity_table"), showWarnings = F)
+  
+  # NOTE: Why keeping one hour before and one hour after the day limits?
+  t_0 <- days(start_day_experiment)-3600
+  t_last <- days(stop_day_experiment)+3600
 
+  ### -- Load metadata
+  
   # Read the metadata: a description of which flies to load and information about them (genotype, age, etc)
   metadata <- data.table::fread(file.path(
     data_dir,
@@ -522,10 +528,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   # This function finds which sqlite file contains the data of each fly in the metadata
   metadata <- scopr::link_ethoscope_metadata(metadata, result_dir = file.path(data_dir, "raw_data"))
 
-  # NOTE: Why keeping one hour before and one hour after the day limits?
-  t_0 <- days(start_day_experiment)-3600
-  t_last <- days(stop_day_experiment)+3600
-
+  #### -- Load ethoscope data using the curated metadata
   # Decide whether each fly is asleep or not every 10 seconds
   # Sleep = immobility for 300 seconds or more (5 mins)
   # Movement = the fly moves from one frame to next more than 0.0042 units of the ROI width
@@ -564,9 +567,17 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   deltaT <- t_last - t_0
   stopifnot(max(dt_curated$t)-min(dt_curated$t) == deltaT)
   deltaT <- deltaT / behavr::days(1) # to days
+  
+  ### -- Run bout analysis and annotate day and phase columns
+  ### 1) Annotate day and phase
+  ### 2) Run sleep/wake bouts analysis:
+  ###  This annotates when the bouts start, whether it is sleep or wake,
+  ###  and how long they last
+  ### 3) Annotate day and phase on bout table, and also bout identifier
 
   # NOTE Wrapping in invisible()
   # because for some reason the data tables are getting printed
+  # when creating the new columns, garbling the printed output
   invisible({
     dt_curated[, day := floor(t / behavr::days(1))]
     dt_curated[, phase := factor(ifelse(t %% behavr::hours(24) < behavr::hours(12), "L", "D"), levels = c("L", "D"))]
@@ -592,7 +603,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
     ))
 
     output_plot <- file.path(
-      file.path(data_dir, "output", "quality_control"),
+      file.path(output_dir, "quality_control"),
       paste("ID", batch_id, "_graph_", ethoscope_codes[i], ".svg", sep = "")
     )
 
@@ -609,7 +620,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   setnames(sleep_fractions, "D", "sleep_fraction_night")
 
   #### -- Sleep architecture (bout count and duration)
-  sleep_architecture <- analyse_sleep_architecture(dt_bouts)
+  sleep_architecture <- analyse_sleep_architecture(dt_bouts, weighted = weighted)
   sleep_architecture <- sleep_architecture[phase == "D" & asleep == TRUE]
   sleep_architecture[, phase := NULL]
   sleep_architecture[, asleep := NULL]
@@ -617,7 +628,7 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   setnames(sleep_architecture, "bout_count", "n_bouts_night")
   
   #### -- Latency to sleep
-  sleep_latency <- analyse_latency(dt_bouts)
+  sleep_latency <- analyse_latency(dt_bouts, weighted = weighted)
   sleep_latency <- sleep_latency[phase == "D" & asleep == TRUE]
   sleep_latency[, phase := NULL]
   sleep_latency[, asleep := NULL]
@@ -628,25 +639,24 @@ analyse_ID_batch <- function(batch_id, testing=FALSE) {
   velocity_analysis <- analyse_velocity(dt_curated, by_phase = FALSE, deltaT = deltaT)
 
   #### -- Anticipation analysis
-  anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment])
+  anticipation_analysis <- analyse_anticipation(dt_curated[day >= start_day_experiment], weighted = weighted)
   anticipation_analysis <- anticipation_analysis[, c(id_columns, "morning_anticipation"), with = FALSE]
  
-  # Put it all together
+  ### -- Put it all together
   output_dt <- list(sleep_fractions, sleep_latency, sleep_architecture, anticipation_analysis, velocity_analysis)
   output_dt <- Reduce(function(x, y) {
     merge(x, y, by = id_columns, all.x = TRUE, all.y = FALSE)
   }, output_dt)
 
-  # Export
-  export_table(output_dt, "sleep_fraction_night", batch_id, "A2", data_dir = data_dir)
-  export_table(output_dt, "latency_to_longest_bout_night", batch_id, "A4", data_dir = data_dir)
-  export_table(output_dt, "mean_bout_length_night", batch_id, "A4", data_dir = data_dir)
-  export_table(output_dt, "n_bouts_night", batch_id, "A4", data_dir = data_dir)
-  export_table(output_dt, "morning_anticipation", batch_id, "A9", data_dir = data_dir)
-  export_table(output_dt, "velocity_if_awake", batch_id, "B1", data_dir = data_dir)
-  export_table(output_dt, "total_distance", batch_id, "B4", data_dir = data_dir)
-  
-  data.table::fwrite(x = output_dt, file = paste(data_dir, "/output/ID", batch_id, ".csv", sep = ""))
+  ### -- Export
+  export_table(output_dt, "sleep_fraction_night", batch_id, "A2", output_dir = output_dir)
+  export_table(output_dt, "latency_to_longest_bout_night", batch_id, "A4", output_dir = output_dir)
+  export_table(output_dt, "mean_bout_length_night", batch_id, "A4", output_dir = output_dir)
+  export_table(output_dt, "n_bouts_night", batch_id, "A4", output_dir = output_dir)
+  export_table(output_dt, "morning_anticipation", batch_id, "A9", output_dir = output_dir)
+  export_table(output_dt, "velocity_if_awake", batch_id, "B1", output_dir = output_dir)
+  export_table(output_dt, "total_distance", batch_id, "B4", output_dir = output_dir)
+  data.table::fwrite(x = output_dt, file = file.path(output_dir, paste("ID", batch_id, ".csv", sep = "")))
 
   return(output_dt)
 }
