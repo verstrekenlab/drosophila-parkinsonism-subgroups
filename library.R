@@ -4,21 +4,15 @@
 # This file contains the functions needed to extract the sleep features used in Kaempf et al 2026
 # The functions are organized in sections, which start with the header ## --
 
-
 library(data.table)
 library(behavr)
 library(scopr)
 library(sleepr)
 
 
-
 ## - Parameters
 start_day_experiment <- 1
 stop_day_experiment <- 5
-ethoscope_cache <- "/ethoscope_data/natalie_cache"
-# ROOT <- here::here()
-# ethoscope_cache <- "INSERT"
-# ROOT <- "INSERT"
 id_columns <- c("id", "genotype")
 time_window_length <- 10
 
@@ -495,7 +489,7 @@ custom_annotation_wrapper <- function(custom_function) {
 
 sum_movement_detector <- custom_annotation_wrapper(movement_detector_enclosed("sum", "xy_dist_log10x1000", "sum_movement", "micromovement", log10x1000_inv))
 
-analyse_ID_batch <- function(batch_id, root, testing=FALSE, weighted = FALSE) {
+analyse_ID_batch <- function(batch_id, root, ethoscope_cache = NULL, testing=FALSE, weighted = FALSE) {
 
   data_dir <- paste0(root, "/ID", batch_id)
   output_dir <- file.path(data_dir, "output_cv3")

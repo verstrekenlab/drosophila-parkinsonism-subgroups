@@ -10,6 +10,8 @@ options(show.error.locations = TRUE) # print file:line on errors
 options(error = traceback)      # or options(error = recover) for interactive debugging
 
 ROOT <- "/media/vibflysleep/Elements/PVlab/"
+ethoscope_cache <- "/media/vibflysleep/Elements/PVlab/natalie_cache/"
+
 BATCHES <- gsub(x = list.files(ROOT, pattern="ID"), pattern ="ID", replacement = "")
 N_JOBS <- 2
 
@@ -35,6 +37,7 @@ out <- mclapply(
     sleep_features <- analyse_ID_batch(
       batch_id,
       root = ROOT,
+      ethoscope_cache = ethoscope_cache,
       testing = FALSE,
       weighted = FALSE
     )
