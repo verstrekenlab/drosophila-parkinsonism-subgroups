@@ -1,5 +1,4 @@
 source("library.R")
-# source("old_library.R")
 
 library(parallel)
 
@@ -9,8 +8,15 @@ options(keep.source = TRUE)          # keep line/column source refs
 options(show.error.locations = TRUE) # print file:line on errors
 options(error = traceback)      # or options(error = recover) for interactive debugging
 
-ROOT <- "/media/vibflysleep/Elements/PVlab/Natalie/ethoscope_data/"
-ethoscope_cache <- "/media/vibflysleep/Elements/PVlab/Natalie/ethoscope_data/natalie_cache/"
+if(!file.exists("paths.txt")) {
+  stop("Please make a file called paths.txt with the format:
+  root,cache
+  path_to_root,path_to_cache")
+}
+
+paths <- read.table("paths.txt")
+ROOT <- paths$root
+ethoscope_cache <- paths$cache
 
 BATCHES <- gsub(x = list.files(ROOT, pattern="ID"), pattern ="ID", replacement = "")
 N_JOBS <- 1
