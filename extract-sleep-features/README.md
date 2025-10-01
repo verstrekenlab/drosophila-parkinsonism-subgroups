@@ -16,16 +16,14 @@ The file `2026_kaempf_sleep_features.csv` contains for every fly (one fly per ro
 Details of the columns:
 
 * `id`: Fly identifier (unique to each fly)
-* `asleep_D`: Fraction of the Dark phase spent sleeping (average over 5 days)
-* `asleep_L`: Fraction of the Light phase spent sleeping (average over 5 days)
-* `bout_duration`: Average sleep bout duration in minutes
-* `bout_count`: Average number of sleep bouts
-* `latency`: Average time taken to enter the first bout of sleep after transitioning to the D phase, in minutes
-* `latency_to_longest_bout`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in minutes
-* `total_distance`: Longitude of the path walked by the animal in the average day (average over 5 days), in meters (meters / day)
-* `velocity`: mean max velocity while awake
-* `morning_anticipation`: Percentage of the time spent moving in the last 6 hours before the DL transition which occurred in the last 3 hours before the DL transition i.e. 100 * time moving in (tDL-3h, tDL) / time moving in (tDL-6h, tDL)
-
+* `sleep_fraction_night`: Fraction of the Dark phase spent sleeping (average over 5 days)
+* `sleep_fraction_day`: Fraction of the Light phase spent sleeping (average over 5 days)
+* `mean_bout_length_night`: Average sleep bout duration in minutes in the D phase
+* `n_bouts_night`: Average number of sleep bouts in the D phase
+* `latency_to_longest_bout_night`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in minutes
+* `total_distance`: Longitude of the path walked by the animal in the average day (average over 4 days), in meters (meters / day)
+* `velovelocity_if_awakecity`: mean max velocity (maximum distance travelled between two contiguous frames) while awake. A max velocity is computed for every fly and block of 10 seconds
+* `morning_anticipation`: Preference index for movement in the last 3 hours before the DL transition vs the 3 hours before that.
 # How to install
 
 ## 1. Download this repository
