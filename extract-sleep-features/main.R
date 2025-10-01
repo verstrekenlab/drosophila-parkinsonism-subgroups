@@ -1,12 +1,5 @@
 source("library.R")
-
 library(parallel)
-
-
-## Put these at the top of your script or in .Rprofile
-options(keep.source = TRUE)          # keep line/column source refs
-options(show.error.locations = TRUE) # print file:line on errors
-options(error = traceback)      # or options(error = recover) for interactive debugging
 
 if(!file.exists("paths.txt")) {
   stop("Please make a file called paths.txt with the format:
@@ -14,14 +7,14 @@ if(!file.exists("paths.txt")) {
   path_to_root,path_to_cache")
 }
 
-paths <- read.table("paths.txt")
-ROOT <- paths$root
-ethoscope_cache <- paths$cache
+paths <- read.table("paths.txt", header = TRUE, sep = ",")
+ROOT <- as.character(paths$root)
+ethoscope_cache <- as.character(paths$cache)
 
-BATCHES <- gsub(x = list.files(ROOT, pattern="ID"), pattern ="ID", replacement = "")
+BATCHES <- gsub(x = list.files(ROOT, pattern="ID"), pattern ="ID", replacement = "")[1]
 N_JOBS <- 1
 
-out <- mclapply(
+out <- parallel::mclapply(
   BATCHES,
   function(batch_id) {
     sleep_features <- analyse_ID_batch(
