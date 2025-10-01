@@ -9,11 +9,11 @@ options(keep.source = TRUE)          # keep line/column source refs
 options(show.error.locations = TRUE) # print file:line on errors
 options(error = traceback)      # or options(error = recover) for interactive debugging
 
-ROOT <- "/media/vibflysleep/Elements/PVlab/"
-ethoscope_cache <- "/media/vibflysleep/Elements/PVlab/natalie_cache/"
+ROOT <- "/media/vibflysleep/Elements/PVlab/Natalie/ethoscope_data/"
+ethoscope_cache <- "/media/vibflysleep/Elements/PVlab/Natalie/ethoscope_data/natalie_cache/"
 
 BATCHES <- gsub(x = list.files(ROOT, pattern="ID"), pattern ="ID", replacement = "")
-N_JOBS <- 2
+N_JOBS <- 1
 
 # out <- list()
 # for (batch_id in BATCHES) {
