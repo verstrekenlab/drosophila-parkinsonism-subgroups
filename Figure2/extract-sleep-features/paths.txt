@@ -1,0 +1,2 @@
+root,cache
+/media/vibflysleep/Elements/PVlab/Natalie/ethoscope_data/,/media/vibflysleep/Elements/PVlab/Natalie/ethoscope_data/natalie_cache/
