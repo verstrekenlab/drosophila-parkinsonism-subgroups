@@ -344,7 +344,7 @@ movement_detector_enclosed <- function(func, feature, statistic, score, preproc_
 
   closure <- function(data, time_window_length=10, threshold=1) {
 
-    message(paste0("Movement detector - ", func, " running.\ntime_window_length = ", time_window_length))
+    message(paste0("Movement detector - running.\ntime_window_length = ", time_window_length))
     func <- match.fun(func)
     # data$body_movement <- data$xy_dist_log10x1000
     d <- sleepr::prepare_data_for_motion_detector(data,
@@ -365,15 +365,18 @@ movement_detector_enclosed <- function(func, feature, statistic, score, preproc_
     # velocity_corrected -> max
     # has_interacted -> sum
     # beam_cross -> sum
+
+    key <- data.table::key(d)
     d_small <- d[, .(
-      statistic = func(feature[1:.N])
+      statistic = func(.SD)
     ), by = "t_round"]
+    data.table::setkeyv(d_small, key)
 
     # Gist of the program!!
     # Score movement as TRUE/FALSE value for every window
     # Score is TRUE if max_velocity of the window is > 1
     # Score FALSE otherwise
-    d_small[, score :=  ifelse(statistic > threshold, TRUE,FALSE)]
+    d_small[, score :=  ifelse(statistic > threshold, TRUE, FALSE)]
     data.table::setnames(d_small, "score", score)
     data.table::setnames(d_small, "statistic", statistic)
 
@@ -465,9 +468,15 @@ custom_annotation_wrapper <- function(custom_function) {
 
     if(is.null(data.table::key(data)))
       return(wrapped(data))
+
+    stopifnot(!is.null(data.table::key(data)))
+    key<-data.table::key(data)
+
+
     data[,
-         wrapped(.SD),
-         by=data.table::key(data)]
+      wrapped(.SD),
+      by = eval(key)
+    ]
   }
 
   attr(custom_annotation, "needed_columns") <- function() {attr(custom_function, 'needed_columns')()}
