@@ -14,23 +14,25 @@ Rscript main.R
 The file `2026_kaempf_sleep_features.csv` contains for every fly (one fly per row) all the relevant sleep features (one feature per column)
 
 Details of the columns:
+id,genotype,sleep_fraction_day,sleep_fraction_night,latency_to_longest_bout_night,mean_bout_length_night,n_bouts_night,morning_anticipation,velocity_if_awake,total_distance
 
 * `id`: Fly identifier (unique to each fly)
-* `sleep_fraction_night`: Fraction of the Dark phase spent sleeping (average over 5 days)
+* `genotype`
 * `sleep_fraction_day`: Fraction of the Light phase spent sleeping (average over 5 days)
+* `sleep_fraction_night`: Fraction of the Dark phase spent sleeping (average over 5 days)
+* `latency_to_longest_bout_night`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in minutes
 * `mean_bout_length_night`: Average sleep bout duration in minutes in the D phase
 * `n_bouts_night`: Average number of sleep bouts in the D phase
-* `latency_to_longest_bout_night`: Average time taken to enter the longest sleep bout after transitioning to the D phase, in minutes
-* `total_distance`: Longitude of the path walked by the animal in the average day (average over 4 days), in meters (meters / day)
-* `velovelocity_if_awakecity`: mean max velocity (maximum distance travelled between two contiguous frames) while awake. A max velocity is computed for every fly and block of 10 seconds
 * `morning_anticipation`: Preference index for movement in the last 3 hours before the DL transition vs the 3 hours before that.
+* `velocity_if_awake`: mean max velocity (maximum distance travelled between two contiguous frames) while awake. A max velocity is computed for every fly and block of 10 seconds
+ * `total_distance`: Longitude of the path walked by the animal in the average day (average over 4 days), in meters (meters / day)
 # How to install
 
 ## 1. Download this repository
 Download main.R and library.R and put them in the same folder
 
 ## 2. Install R 3.6.1
-
+This analysis might also work with R4, but we haven't tested it.
 
 ## 3. Install dependencies whose last version does not support R3.6.1
 As of 2025, some packages cannot be installed anymore using `install.packages` because the standard R version is now R4.
